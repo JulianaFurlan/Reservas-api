@@ -2,7 +2,6 @@ package com.SistemaReservas.reservas_api.controller;
 
 import com.SistemaReservas.reservas_api.model.Reserva;
 import com.SistemaReservas.reservas_api.service.ReservaService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,21 +9,29 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/reservas")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 public class ReservaController {
 
-    @Autowired
-    private ReservaService service;
+    private final ReservaService service;
+
+    public ReservaController(ReservaService service) {
+        this.service = service;
+    }
 
     @GetMapping
-    public List<Reserva> lsitar() {
+    public List<Reserva> listar() {
         return service.listarTodas();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Reserva> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(service.buscarPorId(id));
     }
 
     @PostMapping
     public ResponseEntity<Reserva> criar(@RequestBody Reserva reserva) {
         Reserva salva = service.salvar(reserva);
-        return ResponseEntity.ok(salva);
+        return ResponseEntity.status(201).body(salva);
     }
 
     @PutMapping("/{id}")
