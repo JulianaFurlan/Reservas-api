@@ -36,4 +36,8 @@ public class Usuario {
     private Boolean ativo = true;
 
     private LocalDateTime dataCadastro = LocalDateTime.now();
+
+    public String getRole() {
+        return this.tipo.name();
+    }
 }

@@ -1,50 +1,61 @@
 package com.SistemaReservas.reservas_api.controller;
 
+import com.SistemaReservas.reservas_api.dto.request.LoginRequest;
+import com.SistemaReservas.reservas_api.dto.response.LoginResponse;
+import com.SistemaReservas.reservas_api.dto.response.UsuarioResponse;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
+import com.SistemaReservas.reservas_api.security.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final UsuarioRepository usuarioRepository;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
-    public AuthController(UsuarioRepository usuarioRepository) {
-        this.usuarioRepository = usuarioRepository;
-    }
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String senha = request.get("senha");
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        System.out.println("🔐 Tentativa de login: " + request.getEmail());
+        // 1. Autentica o usuário
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getSenha()
+                )
+        );
 
-        System.out.println("Login attempt: " + email);
+        // 2. Busca o usuário no banco
+        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // Busca o usuário no banco
-        Usuario usuario = usuarioRepository.findByEmail(email).orElse(null);
+        // 3. Gera o token JWT
+        String token = jwtUtil.generateToken(usuario.getEmail(), usuario.getRole());
 
-        if (usuario == null) {
-            return ResponseEntity.status(401).body(Map.of("message", "Usuário não encontrado"));
-        }
+        // 4. CRIA O USUARIORESPONSE (CONVERTE Usuario PARA UsuarioResponse)
+        UsuarioResponse usuarioResponse = new UsuarioResponse(
+                usuario.getId(),
+                usuario.getNome(),
+                usuario.getEmail(),
+                usuario.getTelefone(),
+                usuario.getDepartamento(),
+                usuario.getTipo().toString(),
+                usuario.getAtivo()
+        );
 
-        // Verifica senha (senha está criptografada? Para teste, compare com "admin123")
-        // Como a senha está criptografada, vamos criar um usuário com senha simples
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", "fake-token-123");
-
-        Map<String, Object> usuarioResponse = new HashMap<>();
-        usuarioResponse.put("id", usuario.getId());
-        usuarioResponse.put("nome", usuario.getNome());
-        usuarioResponse.put("email", usuario.getEmail());
-        usuarioResponse.put("tipo", usuario.getTipo().toString());
-
-        response.put("usuario", usuarioResponse);
-
-        return ResponseEntity.ok(response);
+        // 5. Retorna o LoginResponse com token e usuarioResponse
+        return ResponseEntity.ok(new LoginResponse(token, usuarioResponse));
     }
 }
