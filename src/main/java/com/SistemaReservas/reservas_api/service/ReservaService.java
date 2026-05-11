@@ -20,37 +20,33 @@ public class ReservaService {
     }
 
     public Reserva salvar(Reserva reserva) {
-
+        // Se for uma reserva existente (edição), não valida conflito com ela mesma
         boolean temConflito = repository.findAll().stream().anyMatch(existing -> {
-
-            // Validação de null
             if (existing.getSala() == null || reserva.getSala() == null ||
-                existing.getData() == null || reserva.getData() == null) {
+                    existing.getData() == null || reserva.getData() == null) {
                 return false;
             }
 
-            // Mesma sala e mesma data
             if (!existing.getSala().equals(reserva.getSala()) ||
-                !existing.getData().equals(reserva.getData())) {
+                    !existing.getData().equals(reserva.getData())) {
                 return false;
             }
 
-            // Evita conflito com ela mesma na edição
+            // Ignora a própria reserva na edição
             if (reserva.getId() != null && existing.getId().equals(reserva.getId())) {
                 return false;
             }
 
-            // Verifica sobreposição de horários
-            boolean sobrepoe = !(
-                reserva.getHoraFim().isBefore(existing.getHoraInicio()) ||
-                reserva.getHoraInicio().isAfter(existing.getHoraFim())
-            );
-
-            return sobrepoe;
+            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio()) ||
+                    reserva.getHoraInicio().isAfter(existing.getHoraFim()));
         });
 
         if (temConflito) {
             throw new RuntimeException("Esta sala já está reservada neste dia e período.");
+        }
+
+        if (reserva.getStatus() == null) {
+            reserva.setStatus("PENDENTE");
         }
 
         return repository.save(reserva);
@@ -67,4 +63,28 @@ public class ReservaService {
         return repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Reserva não encontrada"));
     }
+
+    public Reserva aprovar(Long id) {
+        Reserva reserva = buscarPorId(id);
+        reserva.setStatus("APROVADO");
+        return repository.save(reserva);
+    }
+
+    public Reserva rejeitar(Long id) {
+        Reserva reserva = buscarPorId(id);
+        reserva.setStatus("REJEITADO");
+        return repository.save(reserva);
+    }
+
+    public Reserva cancelar(Long id) {
+        Reserva reserva = buscarPorId(id);
+        reserva.setStatus("CANCELADO");
+        return repository.save(reserva);
+    }
+
+    public List<Reserva> listarPorUsuario(Long usuarioId) {
+        return repository.findByUsuarioId(usuarioId);
+    }
+
+
 }
