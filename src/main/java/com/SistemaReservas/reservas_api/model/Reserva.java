@@ -2,7 +2,6 @@ package com.SistemaReservas.reservas_api.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -11,7 +10,6 @@ import java.time.LocalTime;
 @Data
 public class Reserva {
 
-    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,5 +32,8 @@ public class Reserva {
     private String departamento;
     private String finalidade;
     private String observacoes;
-
+    private String status = "PENDENTE";
+    private Long usuarioId;
+    private String usuarioNome;
+    private String usuarioEmail;
 }

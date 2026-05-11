@@ -1,6 +1,6 @@
 package com.SistemaReservas.reservas_api.model;
 
-import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
+import com.SistemaReservas.reservas_api.model.enums.PapelUsuario;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,7 +31,7 @@ public class Usuario {
     private String departamento;
 
     @Enumerated(EnumType.STRING)
-    private TipoUsuario tipo = TipoUsuario.COMUM;
+    private PapelUsuario tipo = PapelUsuario.COMUM;
 
     private Boolean ativo = true;
 
