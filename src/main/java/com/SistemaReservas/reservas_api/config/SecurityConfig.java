@@ -3,6 +3,7 @@ package com.SistemaReservas.reservas_api.config;
 import com.SistemaReservas.reservas_api.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,13 +33,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ← CORS aqui dentro
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()  // login liberado
-                        .anyRequest().authenticated()                  // resto exige token
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/reservas/todas").hasAnyRole("GESTOR", "ADMIN")
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers("/api/salas/**").authenticated()
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);

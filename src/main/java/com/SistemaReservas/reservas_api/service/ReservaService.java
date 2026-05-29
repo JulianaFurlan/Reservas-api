@@ -70,9 +70,10 @@ public class ReservaService {
         return repository.save(reserva);
     }
 
-    public Reserva rejeitar(Long id) {
+    public Reserva rejeitar(Long id, String motivo) {
         Reserva reserva = buscarPorId(id);
         reserva.setStatus("REJEITADO");
+        reserva.setMotivoRejeicao(motivo);
         return repository.save(reserva);
     }
 

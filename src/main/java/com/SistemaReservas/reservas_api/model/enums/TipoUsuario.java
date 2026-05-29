@@ -1,5 +1,5 @@
 package com.SistemaReservas.reservas_api.model.enums;
 
-public enum PapelUsuario {
+public enum TipoUsuario {
     COMUM, GESTOR, ADMIN
 }
