@@ -9,10 +9,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import com.SistemaReservas.reservas_api.model.enums.PapelUsuario;
+import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
 
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reservas")
@@ -28,8 +29,7 @@ public class ReservaController {
     }
 
     @GetMapping
-    public List<Reserva> listar(HttpServletRequest request) {
-        // Pega o usuário logado
+    public List<Reserva> listar() {
         Object principal = SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
 
@@ -37,13 +37,13 @@ public class ReservaController {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // Gestor/Admin vê todas, usuário comum vê só as suas
-        if (usuario.getTipo().equals(PapelUsuario.COMUM)) {
-            return service.listarPorUsuario(usuario.getId());
-        }
-        return service.listarTodas();
+        return service.listarPorUsuario(usuario.getId());
     }
 
+    @GetMapping("/todas")
+    public List<Reserva> listarTodas() {
+        return service.listarTodas();
+    }
     @GetMapping("/{id}")
     public ResponseEntity<Reserva> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
@@ -86,8 +86,9 @@ public class ReservaController {
     }
 
     @PutMapping("/{id}/rejeitar")
-    public ResponseEntity<Reserva> rejeitar(@PathVariable Long id) {
-        return ResponseEntity.ok(service.rejeitar(id));
+    public ResponseEntity<Reserva> rejeitar(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String motivo = body.getOrDefault("motivo", "");
+        return ResponseEntity.ok(service.rejeitar(id, motivo));
     }
 
     @PutMapping("/{id}/cancelar")

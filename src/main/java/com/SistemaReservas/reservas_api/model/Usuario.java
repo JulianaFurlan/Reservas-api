@@ -1,6 +1,6 @@
 package com.SistemaReservas.reservas_api.model;
 
-import com.SistemaReservas.reservas_api.model.enums.PapelUsuario;
+import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,11 +31,13 @@ public class Usuario {
     private String departamento;
 
     @Enumerated(EnumType.STRING)
-    private PapelUsuario tipo = PapelUsuario.COMUM;
+    private TipoUsuario tipo = TipoUsuario.COMUM;
 
     private Boolean ativo = true;
 
     private LocalDateTime dataCadastro = LocalDateTime.now();
+
+    private Boolean senhaTemporaria = false;
 
     public String getRole() {
         return this.tipo.name();

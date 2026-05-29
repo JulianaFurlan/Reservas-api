@@ -36,4 +36,5 @@ public class Reserva {
     private Long usuarioId;
     private String usuarioNome;
     private String usuarioEmail;
+    private String motivoRejeicao;
 }
