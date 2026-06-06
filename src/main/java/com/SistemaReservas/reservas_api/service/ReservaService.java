@@ -19,8 +19,13 @@ public class ReservaService {
         return repository.findAll();
     }
 
+    public List<Reserva> listarAprovadas() {
+        return repository.findAll().stream()
+                .filter(r -> "APROVADO".equals(r.getStatus()))
+                .toList();
+    }
+
     public Reserva salvar(Reserva reserva) {
-        // Se for uma reserva existente (edição), não valida conflito com ela mesma
         boolean temConflito = repository.findAll().stream().anyMatch(existing -> {
             if (existing.getSala() == null || reserva.getSala() == null ||
                     existing.getData() == null || reserva.getData() == null) {
@@ -32,8 +37,11 @@ public class ReservaService {
                 return false;
             }
 
-            // Ignora a própria reserva na edição
             if (reserva.getId() != null && existing.getId().equals(reserva.getId())) {
+                return false;
+            }
+
+            if (!"APROVADO".equals(existing.getStatus())) {
                 return false;
             }
 
@@ -42,7 +50,7 @@ public class ReservaService {
         });
 
         if (temConflito) {
-            throw new RuntimeException("Esta sala já está reservada neste dia e período.");
+            throw new RuntimeException("Esta sala já possui uma reserva aprovada neste horário.");
         }
 
         if (reserva.getStatus() == null) {
@@ -51,7 +59,6 @@ public class ReservaService {
 
         return repository.save(reserva);
     }
-
     public void deletar(Long id) {
         if (!repository.existsById(id)) {
             throw new RuntimeException("Reserva não encontrada");

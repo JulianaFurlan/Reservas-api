@@ -28,7 +28,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        System.out.println("🔐 Tentativa de login: " + request.getEmail());
+        System.out.println("Tentativa de login: " + request.getEmail());
         // 1. Autentica o usuário
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(

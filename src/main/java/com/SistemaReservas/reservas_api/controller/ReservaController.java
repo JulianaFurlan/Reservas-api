@@ -80,6 +80,11 @@ public class ReservaController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/aprovadas")
+    public List<Reserva> listarAprovadas() {
+        return service.listarAprovadas();
+    }
+
     @PutMapping("/{id}/aprovar")
     public ResponseEntity<Reserva> aprovar(@PathVariable Long id) {
         return ResponseEntity.ok(service.aprovar(id));

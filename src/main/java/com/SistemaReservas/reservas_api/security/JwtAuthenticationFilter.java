@@ -31,7 +31,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // IGNORA O ENDPOINT DE LOGIN
         if (path.equals("/api/auth/login")) {
             filterChain.doFilter(request, response);
             return;
@@ -40,7 +39,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (token != null && jwtUtil.validateToken(token)) {
-            // ← CORRIGIDO: use getEmailFromToken (ou o nome correto do seu método)
             String email = jwtUtil.extractEmail(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 

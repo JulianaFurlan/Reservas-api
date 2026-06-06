@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 
 @Component
 public class JwtUtil {
@@ -21,7 +23,6 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    // GERAR TOKEN
     public String generateToken(String email, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -35,7 +36,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    // EXTRAIR EMAIL DO TOKEN
     public String extractEmail(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
@@ -45,7 +45,6 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    // VALIDAR TOKEN
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
@@ -53,7 +52,11 @@ public class JwtUtil {
                     .build()
                     .parseClaimsJws(token);
             return true;
-        } catch (Exception e) {
+        } catch (ExpiredJwtException e) {
+            System.out.println("Token expirado: " + e.getMessage());
+            return false;
+        } catch (JwtException e) {
+            System.out.println("Token inválido: " + e.getMessage());
             return false;
         }
     }
