@@ -44,9 +44,15 @@ public class ReservaController {
     public List<Reserva> listarTodas() {
         return service.listarTodas();
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<Reserva> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
+    }
+
+    @GetMapping("/aprovadas")
+    public List<Reserva> listarAprovadas() {
+        return service.listarAprovadas();
     }
 
     @PostMapping
@@ -74,16 +80,6 @@ public class ReservaController {
         return ResponseEntity.ok(atualizada);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        service.deletar(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/aprovadas")
-    public List<Reserva> listarAprovadas() {
-        return service.listarAprovadas();
-    }
 
     @PutMapping("/{id}/aprovar")
     public ResponseEntity<Reserva> aprovar(@PathVariable Long id) {

@@ -22,6 +22,9 @@ public class Sala {
     @Column(nullable = false)
     private String bloco;
 
+    @Column(nullable = false)
+    private String tipo;
+
     private Integer capacidade;
 
     private String recursos;

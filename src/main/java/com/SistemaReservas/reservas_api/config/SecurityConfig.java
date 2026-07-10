@@ -39,9 +39,18 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/reservas/todas").hasAnyRole("GESTOR", "ADMIN")
+
+                        // Reservas — ordem importa, mais específico primeiro
+                        .requestMatchers(HttpMethod.GET, "/api/reservas/aprovadas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reservas/todas").hasAnyRole("GESTOR", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/reservas").authenticated()  // ← adiciona essa
+                        .requestMatchers(HttpMethod.GET, "/api/reservas/**").authenticated() // ← e essa
+
+                        // Usuários e salas
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
-                        .requestMatchers("/api/salas/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/salas/**").authenticated()
+                        .requestMatchers("/api/salas/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter,
