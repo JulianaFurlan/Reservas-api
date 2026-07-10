@@ -18,12 +18,12 @@ public class SalaController {
         this.service = service;
     }
 
-    // Qualquer usuário logado pode ver salas disponíveis
     @GetMapping
     public List<Sala> listar() {
         return service.listarTodas();
     }
 
+    // Qualquer usuário logado pode ver salas disponíveis
     @GetMapping("/disponiveis")
     public List<Sala> listarDisponiveis() {
         return service.listarDisponiveis();
@@ -36,15 +36,13 @@ public class SalaController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Sala> atualizar(@PathVariable Long id,
-                                          @RequestBody Sala sala) {
+    public ResponseEntity<Sala> atualizar(@PathVariable Long id, @RequestBody Sala sala) {
         sala.setId(id);
         return ResponseEntity.ok(service.salvar(sala));
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Sala> alterarStatus(@PathVariable Long id,
-                                              @RequestBody java.util.Map<String, String> body) {
+    public ResponseEntity<Sala> alterarStatus(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
         return ResponseEntity.ok(service.alterarStatus(id, body.get("status")));
     }
 

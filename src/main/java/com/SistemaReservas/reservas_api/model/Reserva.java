@@ -1,5 +1,6 @@
 package com.SistemaReservas.reservas_api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -23,8 +24,15 @@ public class Reserva {
     @Column(nullable = false)
     private LocalTime horaFim;
 
-    @Column(nullable = false)
-    private String sala;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "sala_id", insertable = false, updatable = false)
+    private Sala sala;
+
+    @Column(name = "sala_id", nullable = false)
+    private Long salaId;
+
+    @Column(name = "sala")
+    private String salaNome;
 
     private String nome;
     private String email;

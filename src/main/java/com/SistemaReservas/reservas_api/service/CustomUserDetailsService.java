@@ -22,8 +22,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return User.builder()
                 .username(usuario.getEmail())
-                .password(usuario.getSenha())  // ← SEM {noop}, usa a senha criptografada
-                .roles(usuario.getTipo().toString())
+                .password(usuario.getSenha())
+                .roles(usuario.getTipo().name())
+                .disabled(!usuario.getAtivo())
                 .build();
     }
 }

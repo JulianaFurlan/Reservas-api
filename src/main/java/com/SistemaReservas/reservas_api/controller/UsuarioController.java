@@ -46,4 +46,10 @@ public class UsuarioController {
         String senhaTemp = service.resetarSenha(id);
         return ResponseEntity.ok(Map.of("senhaTemporaria", senhaTemp));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        service.deletar(id);
+        return ResponseEntity.noContent().build();
+    }
 }

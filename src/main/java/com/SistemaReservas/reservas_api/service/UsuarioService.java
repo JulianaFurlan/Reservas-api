@@ -2,6 +2,7 @@ package com.SistemaReservas.reservas_api.service;
 
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
+import com.SistemaReservas.reservas_api.repository.ReservaRepository;
 import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,11 +14,12 @@ public class UsuarioService {
 
     private final UsuarioRepository repository;
     private final PasswordEncoder passwordEncoder;
+    private final ReservaRepository reservaRepository;
 
-    public UsuarioService(UsuarioRepository repository,
-                          PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioRepository repository, PasswordEncoder passwordEncoder, ReservaRepository reservaRepository) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
+        this.reservaRepository = reservaRepository;
     }
 
     public List<Usuario> listarTodos() {
@@ -25,8 +27,7 @@ public class UsuarioService {
     }
 
     public Usuario buscarPorId(Long id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        return repository.findById(id).orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
     }
 
     public Usuario cadastrar(Usuario usuario) {
@@ -45,7 +46,7 @@ public class UsuarioService {
 
         Usuario salvo = repository.save(usuario);
 
-        // Devolve a senha descriptografada UMA VEZ para o admin anotar
+        // Devolve a senha descriptografada uma vez para o admin anotar
         salvo.setSenha(senhaTemp);
         return salvo;
     }
@@ -72,7 +73,7 @@ public class UsuarioService {
         usuario.setSenha(passwordEncoder.encode(senhaTemp));
         usuario.setSenhaTemporaria(true);
         repository.save(usuario);
-        return senhaTemp; // retorna pra admin anotar
+        return senhaTemp;
     }
 
     private String gerarSenhaAleatoria() {
@@ -83,5 +84,16 @@ public class UsuarioService {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
         return sb.toString();
+    }
+
+    public void deletar(Long id) {
+        Usuario usuario = buscarPorId(id);
+
+        boolean temReservas = reservaRepository.existsByUsuarioId(usuario.getId());
+        if (temReservas) {
+            throw new RuntimeException("Este usuários possui reservas no histórico e não pode ser excluído. " + "Desative-o par aimpedir novos acessos");
+        }
+
+        repository.deleteById(id);
     }
 }

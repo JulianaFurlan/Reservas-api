@@ -1,7 +1,9 @@
 package com.SistemaReservas.reservas_api.service;
 
 import com.SistemaReservas.reservas_api.model.Reserva;
+import com.SistemaReservas.reservas_api.model.Sala;
 import com.SistemaReservas.reservas_api.repository.ReservaRepository;
+import com.SistemaReservas.reservas_api.repository.SalaRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,9 +12,11 @@ import java.util.List;
 public class ReservaService {
 
     private final ReservaRepository repository;
+    private final SalaRepository salaRepository;
 
-    public ReservaService(ReservaRepository repository) {
+    public ReservaService(ReservaRepository repository, SalaRepository salaRepository) {
         this.repository = repository;
+        this.salaRepository = salaRepository;
     }
 
     public List<Reserva> listarTodas() {
@@ -26,14 +30,17 @@ public class ReservaService {
     }
 
     public Reserva salvar(Reserva reserva) {
+        if(reserva.getSalaId() != null) {
+            Sala sala = salaRepository.findById(reserva.getSalaId()).orElseThrow (() -> new RuntimeException("Sala não encontrada"));
+            reserva.setSalaNome(sala.getNome());
+        }
+
         boolean temConflito = repository.findAll().stream().anyMatch(existing -> {
-            if (existing.getSala() == null || reserva.getSala() == null ||
-                    existing.getData() == null || reserva.getData() == null) {
+            if (existing.getSalaId() == null || reserva.getSalaId() == null || existing.getData() == null || reserva.getData() == null) {
                 return false;
             }
 
-            if (!existing.getSala().equals(reserva.getSala()) ||
-                    !existing.getData().equals(reserva.getData())) {
+            if (!existing.getSalaId().equals(reserva.getSalaId()) || !existing.getData().equals(reserva.getData())) {
                 return false;
             }
 
@@ -45,8 +52,7 @@ public class ReservaService {
                 return false;
             }
 
-            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio()) ||
-                    reserva.getHoraInicio().isAfter(existing.getHoraFim()));
+            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio()) || reserva.getHoraInicio().isAfter(existing.getHoraFim()));
         });
 
         if (temConflito) {
@@ -58,12 +64,6 @@ public class ReservaService {
         }
 
         return repository.save(reserva);
-    }
-    public void deletar(Long id) {
-        if (!repository.existsById(id)) {
-            throw new RuntimeException("Reserva não encontrada");
-        }
-        repository.deleteById(id);
     }
 
     public Reserva buscarPorId(Long id) {

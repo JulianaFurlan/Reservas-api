@@ -29,7 +29,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         System.out.println("Tentativa de login: " + request.getEmail());
-        // 1. Autentica o usuário
+        //Autentica o usuário
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -37,14 +37,14 @@ public class AuthController {
                 )
         );
 
-        // 2. Busca o usuário no banco
+        //Busca o usuário no banco
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        // 3. Gera o token JWT
+        //Gera o token JWT
         String token = jwtUtil.generateToken(usuario.getEmail(), usuario.getRole());
 
-        // 4. CRIA O USUARIORESPONSE (CONVERTE Usuario PARA UsuarioResponse)
+        //Converte Usuario para UsuarioResponse)
         UsuarioResponse usuarioResponse = new UsuarioResponse(
                 usuario.getId(),
                 usuario.getNome(),
@@ -55,7 +55,7 @@ public class AuthController {
                 usuario.getAtivo()
         );
 
-        // 5. Retorna o LoginResponse com token e usuarioResponse
+        //Retorna o LoginResponse com token e usuarioResponse
         return ResponseEntity.ok(new LoginResponse(token, usuarioResponse));
     }
 }
