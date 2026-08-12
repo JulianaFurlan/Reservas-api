@@ -1,11 +1,16 @@
 package com.SistemaReservas.reservas_api.controller;
 
 import com.SistemaReservas.reservas_api.model.Sala;
+import com.SistemaReservas.reservas_api.model.enums.StatusSala;
 import com.SistemaReservas.reservas_api.service.SalaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/salas")
@@ -39,6 +44,18 @@ public class SalaController {
     public ResponseEntity<Sala> atualizar(@PathVariable Long id, @RequestBody Sala sala) {
         sala.setId(id);
         return ResponseEntity.ok(service.salvar(sala));
+    }
+
+    @GetMapping("/status/opcoes")
+    public ResponseEntity<List<Map<String, String>>> getStatusOptions() {
+        List<Map<String, String>> options = Arrays.stream(StatusSala.values())
+                .map(status -> {
+                    Map<String, String> map = new HashMap<>();
+                    map.put("value", status.name());
+                    return map;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(options);
     }
 
     @PutMapping("/{id}/status")
