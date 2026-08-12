@@ -86,6 +86,23 @@ public class UsuarioService {
         return sb.toString();
     }
 
+    public void alterarSenha(Long usuarioId, String senhaAtual, String novaSenha) {
+        Usuario usuario = repository.findById(usuarioId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        if (!passwordEncoder.matches(senhaAtual, usuario.getSenha())) {
+            throw new RuntimeException("Senha atual incorreta");
+        }
+
+        if (novaSenha.length() < 6) {
+            throw new RuntimeException("A nova senha deve ter pelo menos 6 caracteres");
+        }
+
+        usuario.setSenha(passwordEncoder.encode(novaSenha));
+        usuario.setSenhaTemporaria(false);
+        repository.save(usuario);
+    }
+
     public void deletar(Long id) {
         Usuario usuario = buscarPorId(id);
 

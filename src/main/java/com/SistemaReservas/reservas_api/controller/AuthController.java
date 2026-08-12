@@ -55,6 +55,8 @@ public class AuthController {
                 usuario.getAtivo()
         );
 
+        boolean senhaTemp = Boolean.TRUE.equals(usuario.getSenhaTemporaria());
+
         //Retorna o LoginResponse com token e usuarioResponse
         return ResponseEntity.ok(new LoginResponse(token, usuarioResponse));
     }
