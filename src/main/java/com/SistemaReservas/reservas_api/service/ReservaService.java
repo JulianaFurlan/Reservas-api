@@ -13,10 +13,14 @@ public class ReservaService {
 
     private final ReservaRepository repository;
     private final SalaRepository salaRepository;
+    private final EmailService emailService;
 
-    public ReservaService(ReservaRepository repository, SalaRepository salaRepository) {
+    public ReservaService(ReservaRepository repository,
+                          SalaRepository salaRepository,
+                          EmailService emailService) {  // ← adicionado aqui
         this.repository = repository;
         this.salaRepository = salaRepository;
+        this.emailService = emailService;  // ← adicionado aqui
     }
 
     public List<Reserva> listarTodas() {
@@ -30,29 +34,29 @@ public class ReservaService {
     }
 
     public Reserva salvar(Reserva reserva) {
-        if(reserva.getSalaId() != null) {
-            Sala sala = salaRepository.findById(reserva.getSalaId()).orElseThrow (() -> new RuntimeException("Sala não encontrada"));
+        if (reserva.getSalaId() != null) {
+            Sala sala = salaRepository.findById(reserva.getSalaId())
+                    .orElseThrow(() -> new RuntimeException("Sala não encontrada"));
             reserva.setSalaNome(sala.getNome());
         }
 
         boolean temConflito = repository.findAll().stream().anyMatch(existing -> {
-            if (existing.getSalaId() == null || reserva.getSalaId() == null || existing.getData() == null || reserva.getData() == null) {
+            if (existing.getSalaId() == null || reserva.getSalaId() == null
+                    || existing.getData() == null || reserva.getData() == null) {
                 return false;
             }
-
-            if (!existing.getSalaId().equals(reserva.getSalaId()) || !existing.getData().equals(reserva.getData())) {
+            if (!existing.getSalaId().equals(reserva.getSalaId())
+                    || !existing.getData().equals(reserva.getData())) {
                 return false;
             }
-
             if (reserva.getId() != null && existing.getId().equals(reserva.getId())) {
                 return false;
             }
-
             if (!"APROVADO".equals(existing.getStatus())) {
                 return false;
             }
-
-            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio()) || reserva.getHoraInicio().isAfter(existing.getHoraFim()));
+            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio())
+                    || reserva.getHoraInicio().isAfter(existing.getHoraFim()));
         });
 
         if (temConflito) {
@@ -63,7 +67,9 @@ public class ReservaService {
             reserva.setStatus("PENDENTE");
         }
 
-        return repository.save(reserva);
+        Reserva salva = repository.save(reserva);
+        emailService.notificarReservaCriada(salva); // ← notifica criação
+        return salva;
     }
 
     public Reserva buscarPorId(Long id) {
@@ -74,13 +80,34 @@ public class ReservaService {
     public Reserva aprovar(Long id) {
         Reserva reserva = buscarPorId(id);
         reserva.setStatus("APROVADO");
-        return repository.save(reserva);
+        Reserva salva = repository.save(reserva);
+        emailService.notificarReservaAprovada(salva); // ← notifica aprovação
+        return salva;
     }
 
     public Reserva rejeitar(Long id, String motivo) {
         Reserva reserva = buscarPorId(id);
         reserva.setStatus("REJEITADO");
         reserva.setMotivoRejeicao(motivo);
+        Reserva salva = repository.save(reserva);
+        emailService.notificarReservaRejeitada(salva); // ← notifica rejeição
+        return salva;
+    }
+
+    public List<Reserva> listarHistorico() {
+        return repository.findAll().stream()
+                .filter(r -> "APROVADO".equals(r.getStatus()) || "REJEITADO".equals(r.getStatus()))
+                .sorted((a, b) -> b.getData().compareTo(a.getData()))
+                .toList();
+    }
+
+    public Reserva reverter(Long id) {
+        Reserva reserva = buscarPorId(id);
+        if (reserva.getData().isBefore(java.time.LocalDate.now())) {
+            throw new RuntimeException("Não é possível reverter uma reserva com data já passada.");
+        }
+        reserva.setStatus("PENDENTE");
+        reserva.setMotivoRejeicao(null);
         return repository.save(reserva);
     }
 
@@ -93,6 +120,4 @@ public class ReservaService {
     public List<Reserva> listarPorUsuario(Long usuarioId) {
         return repository.findByUsuarioId(usuarioId);
     }
-
-
 }
