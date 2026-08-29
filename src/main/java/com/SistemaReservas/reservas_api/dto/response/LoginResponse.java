@@ -9,9 +9,8 @@ public class LoginResponse {
     private UsuarioResponse usuario;
     private boolean senhaTemporaria;
 
-    public LoginResponse(String token, UsuarioResponse usuarioResponse, boolean senhaTemporaria) {
+    public LoginResponse(String token, UsuarioResponse usuarioResponse) {
         this.token = token;
         this.usuario = usuarioResponse;
-        this.senhaTemporaria = senhaTemporaria;
     }
 }

@@ -3,6 +3,8 @@ package com.SistemaReservas.reservas_api.controller;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +19,12 @@ public class UsuarioController {
 
     public UsuarioController(UsuarioService service) {
         this.service = service;
+    }
+
+    // mensagens de erro
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, String>> handleException(RuntimeException e) {
+        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
 
     @GetMapping
@@ -46,6 +54,17 @@ public class UsuarioController {
         String senhaTemp = service.resetarSenha(id);
         return ResponseEntity.ok(Map.of("senhaTemporaria", senhaTemp));
     }
+
+    @PutMapping("/perfil/senha")
+    public ResponseEntity<Void> alterarSenha(@RequestBody Map<String, String> body) {
+        Object principal = SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        String email = ((UserDetails) principal).getUsername();
+
+        service.alterarSenha(email, body.get("senhaAtual"), body.get("novaSenha"));
+        return ResponseEntity.ok().build();
+    }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {

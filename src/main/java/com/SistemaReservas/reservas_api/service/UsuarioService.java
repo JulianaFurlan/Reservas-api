@@ -15,11 +15,13 @@ public class UsuarioService {
     private final UsuarioRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final ReservaRepository reservaRepository;
+    private final EmailService emailService;
 
-    public UsuarioService(UsuarioRepository repository, PasswordEncoder passwordEncoder, ReservaRepository reservaRepository) {
+    public UsuarioService(UsuarioRepository repository, PasswordEncoder passwordEncoder, ReservaRepository reservaRepository,  EmailService emailService) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.reservaRepository = reservaRepository;
+        this.emailService = emailService;
     }
 
     public List<Usuario> listarTodos() {
@@ -35,7 +37,6 @@ public class UsuarioService {
             throw new RuntimeException("Email já cadastrado");
         }
 
-        // Gera senha temporária
         String senhaTemp = gerarSenhaAleatoria();
         usuario.setSenha(passwordEncoder.encode(senhaTemp));
         usuario.setSenhaTemporaria(true);
@@ -46,8 +47,12 @@ public class UsuarioService {
 
         Usuario salvo = repository.save(usuario);
 
-        // Devolve a senha descriptografada uma vez para o admin anotar
-        salvo.setSenha(senhaTemp);
+        emailService.notificarNovoCadastro(
+                salvo.getEmail(),
+                salvo.getNome(),
+                senhaTemp
+        );
+
         return salvo;
     }
 
@@ -73,6 +78,13 @@ public class UsuarioService {
         usuario.setSenha(passwordEncoder.encode(senhaTemp));
         usuario.setSenhaTemporaria(true);
         repository.save(usuario);
+
+        emailService.notificarSenhaResetada(
+                usuario.getEmail(),
+                usuario.getNome(),
+                senhaTemp
+        );
+
         return senhaTemp;
     }
 
@@ -86,8 +98,8 @@ public class UsuarioService {
         return sb.toString();
     }
 
-    public void alterarSenha(Long usuarioId, String senhaAtual, String novaSenha) {
-        Usuario usuario = repository.findById(usuarioId)
+    public void alterarSenha(String email, String senhaAtual, String novaSenha) {
+        Usuario usuario = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         if (!passwordEncoder.matches(senhaAtual, usuario.getSenha())) {
