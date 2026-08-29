@@ -40,17 +40,19 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        // Reservas
+                        // usuario específico
+                        .requestMatchers("/api/usuarios/perfil/**").authenticated()
+
+                        // usuarios gerais
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.GET, "/api/reservas/aprovadas").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/reservas/todas").hasAnyRole("GESTOR", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/reservas").authenticated()  // ← adiciona essa
-                        .requestMatchers(HttpMethod.GET, "/api/reservas/**").authenticated() // ← e essa
                         .requestMatchers(HttpMethod.GET, "/api/reservas/historico").hasAnyRole("GESTOR", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/reservas/todas").hasAnyRole("GESTOR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/reservas/*/reverter").hasAnyRole("GESTOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/reservas/*/contatar").hasAnyRole("GESTOR", "ADMIN")
-
-                        // Usuários e salas
-                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/reservas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reservas/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/salas/**").authenticated()
                         .requestMatchers("/api/salas/**").hasRole("ADMIN")
 
