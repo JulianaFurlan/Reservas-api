@@ -1,5 +1,6 @@
 package com.SistemaReservas.reservas_api.service;
 
+import com.SistemaReservas.reservas_api.dto.request.UsuarioRequest;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
 import com.SistemaReservas.reservas_api.repository.ReservaRepository;
@@ -16,12 +17,15 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final ReservaRepository reservaRepository;
     private final EmailService emailService;
+    private final AuditoriaService auditoriaService;
 
-    public UsuarioService(UsuarioRepository repository, PasswordEncoder passwordEncoder, ReservaRepository reservaRepository,  EmailService emailService) {
+    public UsuarioService(UsuarioRepository repository, PasswordEncoder passwordEncoder, ReservaRepository reservaRepository,
+                          EmailService emailService, AuditoriaService auditoriaService) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.reservaRepository = reservaRepository;
         this.emailService = emailService;
+        this.auditoriaService = auditoriaService;
     }
 
     public List<Usuario> listarTodos() {
@@ -32,18 +36,22 @@ public class UsuarioService {
         return repository.findById(id).orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
     }
 
-    public Usuario cadastrar(Usuario usuario) {
-        if (repository.existsByEmail(usuario.getEmail())) {
+    public Usuario cadastrar(UsuarioRequest request) {
+        if (repository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email já cadastrado");
         }
+
+        Usuario usuario = new Usuario();
+        usuario.setNome(request.getNome());
+        usuario.setEmail(request.getEmail());
+        usuario.setTelefone(request.getTelefone());
+        usuario.setDepartamento(request.getDepartamento());
+        usuario.setTipo(parseTipo(request.getTipo()));
+        // ativo e senhaTemporaria não vêm do request: controlados só pelo backend.
 
         String senhaTemp = gerarSenhaAleatoria();
         usuario.setSenha(passwordEncoder.encode(senhaTemp));
         usuario.setSenhaTemporaria(true);
-
-        if (usuario.getTipo() == null) {
-            usuario.setTipo(TipoUsuario.COMUM);
-        }
 
         Usuario salvo = repository.save(usuario);
 
@@ -56,20 +64,39 @@ public class UsuarioService {
         return salvo;
     }
 
-    public Usuario editar(Long id, Usuario dados) {
+    public Usuario editar(Long id, UsuarioRequest dados) {
         Usuario usuario = buscarPorId(id);
         usuario.setNome(dados.getNome());
         usuario.setEmail(dados.getEmail());
         usuario.setTelefone(dados.getTelefone());
         usuario.setDepartamento(dados.getDepartamento());
-        usuario.setTipo(dados.getTipo());
+        usuario.setTipo(parseTipo(dados.getTipo()));
         return repository.save(usuario);
+    }
+
+    private TipoUsuario parseTipo(String tipo) {
+        if (tipo == null || tipo.isBlank()) {
+            return TipoUsuario.COMUM;
+        }
+        try {
+            return TipoUsuario.valueOf(tipo);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Tipo de usuário inválido");
+        }
     }
 
     public Usuario alterarAtivo(Long id, Boolean ativo) {
         Usuario usuario = buscarPorId(id);
         usuario.setAtivo(ativo);
-        return repository.save(usuario);
+        if (!Boolean.TRUE.equals(ativo)) {
+            incrementarTokenVersion(usuario);
+        }
+        Usuario salvo = repository.save(usuario);
+        auditoriaService.registrar(
+                ativo ? "USUARIO_ATIVADO" : "USUARIO_DESATIVADO",
+                "Usuário id=" + id + " (" + usuario.getEmail() + ")"
+        );
+        return salvo;
     }
 
     public String resetarSenha(Long id) {
@@ -77,6 +104,7 @@ public class UsuarioService {
         String senhaTemp = gerarSenhaAleatoria();
         usuario.setSenha(passwordEncoder.encode(senhaTemp));
         usuario.setSenhaTemporaria(true);
+        incrementarTokenVersion(usuario);
         repository.save(usuario);
 
         emailService.notificarSenhaResetada(
@@ -85,15 +113,29 @@ public class UsuarioService {
                 senhaTemp
         );
 
+        auditoriaService.registrar("SENHA_RESETADA", "Usuário id=" + id + " (" + usuario.getEmail() + ")");
+
         return senhaTemp;
     }
+
+    private void validarPoliticaSenha(String novaSenha) {
+        if (novaSenha == null || novaSenha.length() < 8) {
+            throw new RuntimeException("A nova senha deve ter pelo menos 8 caracteres");
+        }
+        boolean temLetra = novaSenha.chars().anyMatch(Character::isLetter);
+        boolean temNumero = novaSenha.chars().anyMatch(Character::isDigit);
+        if (!temLetra || !temNumero) {
+            throw new RuntimeException("A nova senha deve conter letras e números");
+        }
+    }
+
+    private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();
 
     private String gerarSenhaAleatoria() {
         String chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
         StringBuilder sb = new StringBuilder();
-        java.util.Random random = new java.util.Random();
-        for (int i = 0; i < 8; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
+        for (int i = 0; i < 12; i++) {
+            sb.append(chars.charAt(SECURE_RANDOM.nextInt(chars.length())));
         }
         return sb.toString();
     }
@@ -106,13 +148,17 @@ public class UsuarioService {
             throw new RuntimeException("Senha atual incorreta");
         }
 
-        if (novaSenha.length() < 6) {
-            throw new RuntimeException("A nova senha deve ter pelo menos 6 caracteres");
-        }
+        validarPoliticaSenha(novaSenha);
 
         usuario.setSenha(passwordEncoder.encode(novaSenha));
         usuario.setSenhaTemporaria(false);
+        incrementarTokenVersion(usuario);
         repository.save(usuario);
+    }
+
+    private void incrementarTokenVersion(Usuario usuario) {
+        int atual = usuario.getTokenVersion() == null ? 0 : usuario.getTokenVersion();
+        usuario.setTokenVersion(atual + 1);
     }
 
     public void deletar(Long id) {

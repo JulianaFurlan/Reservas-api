@@ -39,6 +39,11 @@ public class Usuario {
 
     private Boolean senhaTemporaria = false;
 
+    // Incrementado ao trocar/resetar senha ou desativar a conta; usado para invalidar
+    // tokens JWT emitidos antes dessa mudança (JWT é stateless e não tem revogação
+    // nativa, então usamos esse "número de versão" como claim no token).
+    private Integer tokenVersion = 0;
+
     public String getRole() {
         return this.tipo.name();
     }

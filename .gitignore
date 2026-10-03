@@ -32,5 +32,11 @@ build/
 ### VS Code ###
 .vscode/
 
-src/main/resources/application.properties
+# application.properties agora só contém placeholders ${VAR} (sem segredos) e pode
+# ficar versionado. Os segredos reais vão em application-local.properties (nunca commitado)
+# ou em variáveis de ambiente do servidor em produção.
+src/main/resources/application-local.properties
+.env
+.env.*
+!.env.example
 

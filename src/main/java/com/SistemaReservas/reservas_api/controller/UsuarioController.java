@@ -1,8 +1,13 @@
 package com.SistemaReservas.reservas_api.controller;
 
+import com.SistemaReservas.reservas_api.dto.request.AlterarSenhaRequest;
+import com.SistemaReservas.reservas_api.dto.request.UsuarioRequest;
+import com.SistemaReservas.reservas_api.dto.response.UsuarioResponse;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/usuarios")
-@CrossOrigin(origins = "http://localhost:5173")
 public class UsuarioController {
 
     private final UsuarioService service;
@@ -21,34 +25,48 @@ public class UsuarioController {
         this.service = service;
     }
 
-    // mensagens de erro
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleException(RuntimeException e) {
-        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+    private UsuarioResponse toResponse(Usuario usuario) {
+        return new UsuarioResponse(
+                usuario.getId(),
+                usuario.getNome(),
+                usuario.getEmail(),
+                usuario.getTelefone(),
+                usuario.getDepartamento(),
+                usuario.getTipo().toString(),
+                usuario.getAtivo()
+        );
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public List<Usuario> listar() {
-        return service.listarTodos();
+    public List<UsuarioResponse> listar() {
+        return service.listarTodos().stream().map(this::toResponse).toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public ResponseEntity<Usuario> cadastrar(@RequestBody Usuario usuario) {
-        return ResponseEntity.status(201).body(service.cadastrar(usuario));
+    public ResponseEntity<UsuarioResponse> cadastrar(@Valid @RequestBody UsuarioRequest request) {
+        Usuario salvo = service.cadastrar(request);
+        return ResponseEntity.status(201).body(toResponse(salvo));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> editar(@PathVariable Long id,
-                                          @RequestBody Usuario dados) {
-        return ResponseEntity.ok(service.editar(id, dados));
+    public ResponseEntity<UsuarioResponse> editar(@PathVariable Long id,
+                                                  @Valid @RequestBody UsuarioRequest request) {
+        Usuario atualizado = service.editar(id, request);
+        return ResponseEntity.ok(toResponse(atualizado));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/ativo")
-    public ResponseEntity<Usuario> alterarAtivo(@PathVariable Long id,
-                                                @RequestBody Map<String, Boolean> body) {
-        return ResponseEntity.ok(service.alterarAtivo(id, body.get("ativo")));
+    public ResponseEntity<UsuarioResponse> alterarAtivo(@PathVariable Long id,
+                                                        @RequestBody Map<String, Boolean> body) {
+        Usuario atualizado = service.alterarAtivo(id, body.get("ativo"));
+        return ResponseEntity.ok(toResponse(atualizado));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/resetar-senha")
     public ResponseEntity<Map<String, String>> resetarSenha(@PathVariable Long id) {
         String senhaTemp = service.resetarSenha(id);
@@ -56,16 +74,16 @@ public class UsuarioController {
     }
 
     @PutMapping("/perfil/senha")
-    public ResponseEntity<Void> alterarSenha(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Void> alterarSenha(@Valid @RequestBody AlterarSenhaRequest request) {
         Object principal = SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
         String email = ((UserDetails) principal).getUsername();
 
-        service.alterarSenha(email, body.get("senhaAtual"), body.get("novaSenha"));
+        service.alterarSenha(email, request.getSenhaAtual(), request.getNovaSenha());
         return ResponseEntity.ok().build();
     }
 
-
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         service.deletar(id);

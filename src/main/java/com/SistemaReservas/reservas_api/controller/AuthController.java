@@ -6,9 +6,14 @@ import com.SistemaReservas.reservas_api.dto.response.UsuarioResponse;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
 import com.SistemaReservas.reservas_api.security.JwtUtil;
+import com.SistemaReservas.reservas_api.security.LoginAttemptService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -26,25 +33,39 @@ public class AuthController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        System.out.println("Tentativa de login: " + request.getEmail());
-        //Autentica o usuário
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getSenha()
-                )
-        );
+    @Autowired
+    private LoginAttemptService loginAttemptService;
 
-        //Busca o usuário no banco
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        String chaveEmail = "email:" + email;
+        String chaveIp = "ip:" + httpRequest.getRemoteAddr();
+
+        loginAttemptService.verificarBloqueio(chaveEmail);
+        loginAttemptService.verificarBloqueio(chaveIp);
+
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.getSenha())
+            );
+        } catch (AuthenticationException e) {
+            loginAttemptService.registrarFalha(chaveEmail);
+            loginAttemptService.registrarFalha(chaveIp);
+            throw e;
+        }
+
+        loginAttemptService.registrarSucesso(chaveEmail);
+        loginAttemptService.registrarSucesso(chaveIp);
+
+        Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        //Gera o token JWT
-        String token = jwtUtil.generateToken(usuario.getEmail(), usuario.getRole());
+        log.info("Login bem-sucedido para usuário id={}", usuario.getId());
 
-        //Converte Usuario para UsuarioResponse)
+        String token = jwtUtil.generateToken(usuario.getEmail(), usuario.getRole(), usuario.getTokenVersion());
+
         UsuarioResponse usuarioResponse = new UsuarioResponse(
                 usuario.getId(),
                 usuario.getNome(),
@@ -55,9 +76,6 @@ public class AuthController {
                 usuario.getAtivo()
         );
 
-        boolean senhaTemp = Boolean.TRUE.equals(usuario.getSenhaTemporaria());
-
-        //Retorna o LoginResponse com token e usuarioResponse
         return ResponseEntity.ok(new LoginResponse(token, usuarioResponse));
     }
 }
