@@ -1,5 +1,7 @@
 package com.SistemaReservas.reservas_api.security;
 
+import com.SistemaReservas.reservas_api.model.Usuario;
+import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,10 +20,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final UsuarioRepository usuarioRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService,
+                                   UsuarioRepository usuarioRepository) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
@@ -38,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractToken(request);
 
-        if (token != null && jwtUtil.validateToken(token)) {
+        if (token != null && jwtUtil.validateToken(token) && tokenVersionValida(token)) {
             String email = jwtUtil.extractEmail(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
@@ -48,6 +53,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // Garante que o token foi emitido depois da última troca/reset de senha ou
+    // desativação de conta. JWT é stateless e não tem revogação nativa, então
+    // comparamos a claim "tv" do token com o valor atual no banco.
+    private boolean tokenVersionValida(String token) {
+        String email = jwtUtil.extractEmail(token);
+        Usuario usuario = usuarioRepository.findByEmail(email).orElse(null);
+        if (usuario == null) {
+            return false;
+        }
+        int tokenVersion = jwtUtil.extractTokenVersion(token);
+        int versionAtual = usuario.getTokenVersion() == null ? 0 : usuario.getTokenVersion();
+        return tokenVersion == versionAtual;
     }
 
     private String extractToken(HttpServletRequest request) {

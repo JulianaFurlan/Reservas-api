@@ -1,11 +1,16 @@
 package com.SistemaReservas.reservas_api.controller;
 
+import com.SistemaReservas.reservas_api.dto.request.ReservaRequest;
 import com.SistemaReservas.reservas_api.model.Reserva;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
+import com.SistemaReservas.reservas_api.service.AuditoriaService;
 import com.SistemaReservas.reservas_api.service.EmailService;
 import com.SistemaReservas.reservas_api.service.ReservaService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -16,28 +21,32 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reservas")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ReservaController {
 
     private final ReservaService service;
     private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
+    private final AuditoriaService auditoriaService;
 
-    public ReservaController(ReservaService service, UsuarioRepository usuarioRepository,  EmailService emailService) {
+    public ReservaController(ReservaService service, UsuarioRepository usuarioRepository,
+                             EmailService emailService, AuditoriaService auditoriaService) {
         this.service = service;
         this.usuarioRepository = usuarioRepository;
         this.emailService = emailService;
+        this.auditoriaService = auditoriaService;
+    }
+
+    private Usuario usuarioAutenticado() {
+        Object principal = SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        String email = ((UserDetails) principal).getUsername();
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
     }
 
     @GetMapping
     public List<Reserva> listar() {
-        Object principal = SecurityContextHolder.getContext()
-                .getAuthentication().getPrincipal();
-
-        String email = ((UserDetails) principal).getUsername();
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-
+        Usuario usuario = usuarioAutenticado();
         return service.listarPorUsuario(usuario.getId());
     }
 
@@ -53,65 +62,65 @@ public class ReservaController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Reserva> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(service.buscarPorId(id));
+        Reserva reserva = service.buscarPorId(id);
+        Usuario usuario = usuarioAutenticado();
+        if (!service.podeGerenciar(usuario, reserva)) {
+            throw new AccessDeniedException("Você não tem permissão para ver esta reserva");
+        }
+        return ResponseEntity.ok(reserva);
     }
 
     @PostMapping
-    public ResponseEntity<Reserva> criar(@RequestBody Reserva reserva) {
-        // Captura o usuário logado
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof UserDetails) {
-            String email = ((UserDetails) principal).getUsername();
-            Usuario usuario = usuarioRepository.findByEmail(email).orElse(null);
-            if (usuario != null) {
-                reserva.setUsuarioId(usuario.getId());
-                reserva.setUsuarioEmail(usuario.getEmail());
-                reserva.setUsuarioNome(usuario.getNome());
-            }
-        }
-
-        Reserva salva = service.salvar(reserva);
+    public ResponseEntity<Reserva> criar(@Valid @RequestBody ReservaRequest request) {
+        Usuario usuario = usuarioAutenticado();
+        Reserva salva = service.criar(request, usuario);
         return ResponseEntity.status(201).body(salva);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Reserva> atualizar(@PathVariable Long id, @RequestBody Reserva reserva) {
-        reserva.setId(id);
-        Reserva atualizada = service.salvar(reserva);
+    public ResponseEntity<Reserva> atualizar(@PathVariable Long id, @Valid @RequestBody ReservaRequest request) {
+        Usuario usuario = usuarioAutenticado();
+        Reserva atualizada = service.atualizar(id, request, usuario);
         return ResponseEntity.ok(atualizada);
     }
 
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
     @PutMapping("/{id}/aprovar")
     public ResponseEntity<Reserva> aprovar(@PathVariable Long id) {
-        return ResponseEntity.ok(service.aprovar(id));
+        Reserva reserva = service.aprovar(id);
+        auditoriaService.registrar("RESERVA_APROVADA", "Reserva id=" + id);
+        return ResponseEntity.ok(reserva);
     }
 
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
     @PutMapping("/{id}/rejeitar")
     public ResponseEntity<Reserva> rejeitar(@PathVariable Long id, @RequestBody Map<String, String> body) {
         String motivo = body.getOrDefault("motivo", "");
-        return ResponseEntity.ok(service.rejeitar(id, motivo));
+        Reserva reserva = service.rejeitar(id, motivo);
+        auditoriaService.registrar("RESERVA_REJEITADA", "Reserva id=" + id + "; motivo=" + motivo);
+        return ResponseEntity.ok(reserva);
     }
 
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
     @GetMapping("/historico")
     public List<Reserva> listarHistorico() {
         return service.listarHistorico();
     }
 
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
     @PutMapping("/{id}/reverter")
     public ResponseEntity<Reserva> reverter(@PathVariable Long id) {
-        return ResponseEntity.ok(service.reverter(id));
+        Reserva reserva = service.reverter(id);
+        auditoriaService.registrar("RESERVA_REVERTIDA", "Reserva id=" + id);
+        return ResponseEntity.ok(reserva);
     }
 
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
     @PostMapping("/{id}/contatar")
     public ResponseEntity<Void> contatar(@PathVariable Long id,
                                          @RequestBody Map<String, String> body) {
         Reserva reserva = service.buscarPorId(id);
-
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String emailGestor = ((UserDetails) principal).getUsername();
-
-        Usuario gestor = usuarioRepository.findByEmail(emailGestor)
-                .orElseThrow(() -> new RuntimeException("Gestor não encontrado"));
+        Usuario gestor = usuarioAutenticado();
 
         emailService.enviarMensagemGestor(
                 reserva.getUsuarioEmail(),
@@ -124,7 +133,9 @@ public class ReservaController {
 
     @PutMapping("/{id}/cancelar")
     public ResponseEntity<Reserva> cancelar(@PathVariable Long id) {
-        return ResponseEntity.ok(service.cancelar(id));
+        Usuario usuario = usuarioAutenticado();
+        Reserva reserva = service.cancelar(id, usuario);
+        return ResponseEntity.ok(reserva);
     }
 
 }

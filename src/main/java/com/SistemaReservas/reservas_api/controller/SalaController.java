@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/salas")
-@CrossOrigin(origins = "http://localhost:5173")
 public class SalaController {
 
     private final SalaService service;
