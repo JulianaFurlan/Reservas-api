@@ -13,7 +13,7 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     boolean existsBySalaId(Long salaId);
     boolean existsByUsuarioId(Long usuarioId);
 
-    List<Reserva> findBySalaIdAndStatusInAndDataAfter(
+    List<Reserva> findBySalaIdAndStatusInAndDataGreaterThanEqual(
             Long salaId,
             List<String> statuses,
             LocalDate data

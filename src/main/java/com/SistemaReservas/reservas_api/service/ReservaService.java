@@ -4,9 +4,11 @@ import com.SistemaReservas.reservas_api.dto.request.ReservaRequest;
 import com.SistemaReservas.reservas_api.model.Reserva;
 import com.SistemaReservas.reservas_api.model.Sala;
 import com.SistemaReservas.reservas_api.model.Usuario;
+import com.SistemaReservas.reservas_api.model.enums.StatusSala;
 import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
 import com.SistemaReservas.reservas_api.repository.ReservaRepository;
 import com.SistemaReservas.reservas_api.repository.SalaRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -37,8 +39,16 @@ public class ReservaService {
 
     public List<Reserva> listarAprovadas() {
         return repository.findAll().stream()
-                .filter(r -> "APROVADO".equals(r.getStatus()))
+                .filter(this::aprovada)
                 .toList();
+    }
+
+    private boolean aprovada(Reserva reserva) {
+        return "APROVADO".equals(reserva.getStatus()) || "APROVADA".equals(reserva.getStatus());
+    }
+
+    private boolean rejeitada(Reserva reserva) {
+        return "REJEITADO".equals(reserva.getStatus()) || "REJEITADA".equals(reserva.getStatus());
     }
 
     public boolean podeGerenciar(Usuario usuario, Reserva reserva) {
@@ -63,8 +73,12 @@ public class ReservaService {
     public Reserva atualizar(Long id, ReservaRequest request, Usuario usuarioLogado) {
         Reserva reserva = buscarPorId(id);
         if (!podeGerenciar(usuarioLogado, reserva)) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Você não tem permissão para editar esta reserva");
+            throw new AccessDeniedException("Você não tem permissão para editar esta reserva");
+        }
+
+        if (aprovada(reserva) || rejeitada(reserva)) {
+            reserva.setStatus("PENDENTE");
+            reserva.setMotivoRejeicao(null);
         }
 
         // status, usuarioId, usuarioNome, usuarioEmail e motivoRejeicao nunca vêm do
@@ -79,6 +93,9 @@ public class ReservaService {
         if (request.getSalaId() != null) {
             Sala sala = salaRepository.findById(request.getSalaId())
                     .orElseThrow(() -> new RuntimeException("Sala não encontrada"));
+            if (!StatusSala.ATIVA.name().equals(sala.getStatus())) {
+                throw new RuntimeException("Esta sala não está disponível para reservas.");
+            }
             reserva.setSalaId(sala.getId());
             reserva.setSalaNome(sala.getNome());
         }
@@ -94,12 +111,32 @@ public class ReservaService {
     }
 
     private Reserva salvarComValidacoes(Reserva reserva) {
+        validarSolicitante(reserva);
+        validarHorario(reserva);
         validarAntecedencia(reserva);
         validarConflito(reserva);
 
         Reserva salva = repository.save(reserva);
         emailService.notificarReservaCriada(salva);
         return salva;
+    }
+
+    private void validarSolicitante(Reserva reserva) {
+        if (reserva.getNome() == null || reserva.getNome().trim().isEmpty()) {
+            throw new RuntimeException("O nome do solicitante é obrigatório.");
+        }
+        if (reserva.getEmail() != null && !reserva.getEmail().trim().toLowerCase().endsWith("@unifil.br")) {
+            throw new RuntimeException("O e-mail deve pertencer ao domínio @unifil.br.");
+        }
+    }
+
+    private void validarHorario(Reserva reserva) {
+        if (reserva.getHoraInicio() == null || reserva.getHoraFim() == null) {
+            return;
+        }
+        if (!reserva.getHoraFim().isAfter(reserva.getHoraInicio())) {
+            throw new RuntimeException("Horário de fim deve ser após o início");
+        }
     }
 
     private void validarAntecedencia(Reserva reserva) {
@@ -134,7 +171,7 @@ public class ReservaService {
             if (reserva.getId() != null && existing.getId().equals(reserva.getId())) {
                 return false;
             }
-            if (!"APROVADO".equals(existing.getStatus())) {
+            if (!aprovada(existing)) {
                 return false;
             }
             return !(reserva.getHoraFim().isBefore(existing.getHoraInicio())
@@ -153,6 +190,7 @@ public class ReservaService {
 
     public Reserva aprovar(Long id) {
         Reserva reserva = buscarPorId(id);
+        validarConflito(reserva);
         reserva.setStatus("APROVADO");
         Reserva salva = repository.save(reserva);
         emailService.notificarReservaAprovada(salva);
@@ -160,6 +198,9 @@ public class ReservaService {
     }
 
     public Reserva rejeitar(Long id, String motivo) {
+        if (motivo == null || motivo.trim().isEmpty()) {
+            throw new RuntimeException("O motivo da rejeição é obrigatório.");
+        }
         Reserva reserva = buscarPorId(id);
         reserva.setStatus("REJEITADO");
         reserva.setMotivoRejeicao(motivo);
@@ -170,14 +211,14 @@ public class ReservaService {
 
     public List<Reserva> listarHistorico() {
         return repository.findAll().stream()
-                .filter(r -> "APROVADO".equals(r.getStatus()) || "REJEITADO".equals(r.getStatus()))
+                .filter(r -> aprovada(r) || rejeitada(r))
                 .sorted((a, b) -> b.getData().compareTo(a.getData()))
                 .toList();
     }
 
     public Reserva reverter(Long id) {
         Reserva reserva = buscarPorId(id);
-        if (reserva.getData().isBefore(java.time.LocalDate.now())) {
+        if (reserva.getData().isBefore(LocalDate.now())) {
             throw new RuntimeException("Não é possível reverter uma reserva com data já passada.");
         }
         reserva.setStatus("PENDENTE");
@@ -188,8 +229,7 @@ public class ReservaService {
     public Reserva cancelar(Long id, Usuario usuarioLogado) {
         Reserva reserva = buscarPorId(id);
         if (!podeGerenciar(usuarioLogado, reserva)) {
-            throw new org.springframework.security.access.AccessDeniedException(
-                    "Você não tem permissão para cancelar esta reserva");
+            throw new AccessDeniedException("Você não tem permissão para cancelar esta reserva");
         }
         reserva.setStatus("CANCELADO");
         return repository.save(reserva);

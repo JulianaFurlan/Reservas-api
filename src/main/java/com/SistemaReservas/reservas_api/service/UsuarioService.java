@@ -1,6 +1,7 @@
 package com.SistemaReservas.reservas_api.service;
 
 import com.SistemaReservas.reservas_api.dto.request.UsuarioRequest;
+import com.SistemaReservas.reservas_api.exception.ResourceNotFoundException;
 import com.SistemaReservas.reservas_api.model.Usuario;
 import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
 import com.SistemaReservas.reservas_api.repository.ReservaRepository;
@@ -8,10 +9,13 @@ import com.SistemaReservas.reservas_api.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.List;
 
 @Service
 public class UsuarioService {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UsuarioRepository repository;
     private final PasswordEncoder passwordEncoder;
@@ -33,7 +37,7 @@ public class UsuarioService {
     }
 
     public Usuario buscarPorId(Long id) {
-        return repository.findById(id).orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 
     public Usuario cadastrar(UsuarioRequest request) {
@@ -129,8 +133,6 @@ public class UsuarioService {
         }
     }
 
-    private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();
-
     private String gerarSenhaAleatoria() {
         String chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
         StringBuilder sb = new StringBuilder();
@@ -166,7 +168,7 @@ public class UsuarioService {
 
         boolean temReservas = reservaRepository.existsByUsuarioId(usuario.getId());
         if (temReservas) {
-            throw new RuntimeException("Este usuários possui reservas no histórico e não pode ser excluído. " + "Desative-o par aimpedir novos acessos");
+            throw new RuntimeException("Este usuário possui reservas no histórico e não pode ser excluído. Desative-o para impedir novos acessos");
         }
 
         repository.deleteById(id);

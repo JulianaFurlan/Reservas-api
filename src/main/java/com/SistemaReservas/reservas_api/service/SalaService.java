@@ -2,12 +2,13 @@ package com.SistemaReservas.reservas_api.service;
 
 import com.SistemaReservas.reservas_api.model.Reserva;
 import com.SistemaReservas.reservas_api.model.Sala;
+import com.SistemaReservas.reservas_api.model.enums.StatusSala;
 import com.SistemaReservas.reservas_api.repository.ReservaRepository;
 import com.SistemaReservas.reservas_api.repository.SalaRepository;
-import jakarta.validation.constraints.Email;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -28,7 +29,7 @@ public class SalaService {
     }
 
     public List<Sala> listarDisponiveis() {
-        return repository.findByStatus("ATIVO");
+        return repository.findByStatus(StatusSala.ATIVA.name());
     }
 
     public Sala buscarPorId(Long id) {
@@ -36,6 +37,18 @@ public class SalaService {
     }
 
     public Sala salvar(Sala sala) {
+        if (sala.getNome() == null || sala.getNome().trim().isEmpty()) {
+            throw new RuntimeException("O nome da sala é obrigatório.");
+        }
+        if (sala.getBloco() == null || sala.getBloco().trim().isEmpty()) {
+            throw new RuntimeException("O bloco da sala é obrigatório.");
+        }
+        if (sala.getCapacidade() != null && sala.getCapacidade() <= 0) {
+            throw new RuntimeException("Capacidade deve ser maior que zero");
+        }
+        if (!statusValido(sala.getStatus())) {
+            throw new RuntimeException("Status inválido");
+        }
         // Valida duplicata apenas no cadastro
         if (sala.getId() == null && repository.existsByNomeAndBloco(sala.getNome(), sala.getBloco())) {
             throw new RuntimeException("Já existe uma sala com este nome neste bloco");
@@ -43,14 +56,18 @@ public class SalaService {
         return repository.save(sala);
     }
 
+    private boolean statusValido(String status) {
+        return Arrays.stream(StatusSala.values()).anyMatch(s -> s.name().equals(status));
+    }
+
     public Sala alterarStatus(Long id, String status) {
         Sala sala = buscarPorId(id);
 
         if (!status.equals("ATIVA")) {
             List<Reserva> reservasFuturas = reservaRepository
-                    .findBySalaIdAndStatusInAndDataAfter(
+                    .findBySalaIdAndStatusInAndDataGreaterThanEqual(
                             id,
-                            List.of("PENDENTE", "APROVADO"),
+                            List.of("PENDENTE", "APROVADO", "APROVADA"),
                             LocalDate.now()
                     );
 

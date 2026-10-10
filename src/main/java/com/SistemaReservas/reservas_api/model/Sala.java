@@ -30,6 +30,6 @@ public class Sala {
     private String recursos;
 
     @Column(nullable = false)
-    private String status = "ATIVO";
+    private String status = "ATIVA";
 
 }
