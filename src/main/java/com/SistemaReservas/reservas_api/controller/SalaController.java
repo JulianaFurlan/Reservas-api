@@ -7,10 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/salas")
@@ -48,17 +46,13 @@ public class SalaController {
     @GetMapping("/status/opcoes")
     public ResponseEntity<List<Map<String, String>>> getStatusOptions() {
         List<Map<String, String>> options = Arrays.stream(StatusSala.values())
-                .map(status -> {
-                    Map<String, String> map = new HashMap<>();
-                    map.put("value", status.name());
-                    return map;
-                })
-                .collect(Collectors.toList());
+                .map(status -> Map.of("value", status.name()))
+                .toList();
         return ResponseEntity.ok(options);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Sala> alterarStatus(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+    public ResponseEntity<Sala> alterarStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(service.alterarStatus(id, body.get("status")));
     }
 

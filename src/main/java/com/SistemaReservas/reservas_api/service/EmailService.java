@@ -27,7 +27,6 @@ public class EmailService {
     }
 
     // EMAIL GENÉRICO
-    @Async
     private void enviar(String destinatario, String assunto, String corpo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
