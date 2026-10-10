@@ -1,10 +1,12 @@
 package com.SistemaReservas.reservas_api.config;
 
 import com.SistemaReservas.reservas_api.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -20,6 +22,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,8 +63,19 @@ public class SecurityConfig {
                                 .policyDirectives("default-src 'self'; frame-ancestors 'none'")
                         )
                 )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, e) ->
+                                escreverErro(response, HttpServletResponse.SC_UNAUTHORIZED,
+                                        "Sessão expirada ou token inválido. Faça login novamente."))
+                        .accessDeniedHandler((request, response, e) ->
+                                escreverErro(response, HttpServletResponse.SC_FORBIDDEN, "Acesso negado"))
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+
+                        // somente admin
+                        .requestMatchers("/api/auditoria/**").hasRole("ADMIN")
 
                         // usuario específico
                         .requestMatchers("/api/usuarios/perfil/**").authenticated()
@@ -80,7 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/reservas").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reservas/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/reservas").authenticated()
-                        // atualizar/cancelar: autenticado aqui; posse (dono ou gestor/admin) é checada no controller/service
+                        // atualizar/cancelar: autenticado aqui
                         .requestMatchers(HttpMethod.PUT, "/api/reservas/**").authenticated()
 
                         .requestMatchers(HttpMethod.GET, "/api/salas/**").authenticated()
@@ -94,6 +109,13 @@ public class SecurityConfig {
         return http.build();
     }
 
+    private void escreverErro(HttpServletResponse response, int status, String mensagem) throws IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write("{\"message\":\"" + mensagem + "\"}");
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -103,7 +125,7 @@ public class SecurityConfig {
                 .toList();
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Content-Type"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

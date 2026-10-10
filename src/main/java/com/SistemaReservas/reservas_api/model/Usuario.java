@@ -1,10 +1,12 @@
 package com.SistemaReservas.reservas_api.model;
 
 import com.SistemaReservas.reservas_api.model.enums.TipoUsuario;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Data
@@ -24,6 +26,7 @@ public class Usuario {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String senha;
 
@@ -39,9 +42,6 @@ public class Usuario {
 
     private Boolean senhaTemporaria = false;
 
-    // Incrementado ao trocar/resetar senha ou desativar a conta; usado para invalidar
-    // tokens JWT emitidos antes dessa mudança (JWT é stateless e não tem revogação
-    // nativa, então usamos esse "número de versão" como claim no token).
     private Integer tokenVersion = 0;
 
     public String getRole() {
