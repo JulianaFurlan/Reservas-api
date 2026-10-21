@@ -6,12 +6,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-/**
- * Registra ações administrativas sensíveis (aprovação/rejeição de reservas, reset de
- * senha, ativação/desativação de contas) para rastreabilidade, já que o sistema não
- * tem outra forma de auditoria. Resolve automaticamente o usuário autenticado que
- * disparou a ação a partir do SecurityContext.
- */
 @Service
 public class AuditoriaService {
 

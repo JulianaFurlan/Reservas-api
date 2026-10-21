@@ -51,7 +51,6 @@ public class UsuarioService {
         usuario.setTelefone(request.getTelefone());
         usuario.setDepartamento(request.getDepartamento());
         usuario.setTipo(parseTipo(request.getTipo()));
-        // ativo e senhaTemporaria não vêm do request: controlados só pelo backend.
 
         String senhaTemp = gerarSenhaAleatoria();
         usuario.setSenha(passwordEncoder.encode(senhaTemp));

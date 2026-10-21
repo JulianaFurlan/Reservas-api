@@ -9,10 +9,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Remove o header "Server" (quando presente) para não revelar a tecnologia/versão do
- * servidor de aplicação às respostas HTTP.
- */
 @Component
 public class ServerHeaderFilter extends OncePerRequestFilter {
 

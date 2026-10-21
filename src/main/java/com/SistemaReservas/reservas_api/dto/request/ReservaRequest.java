@@ -5,9 +5,6 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-// status, usuarioId, usuarioEmail e usuarioNome não existem aqui de propósito: são
-// sempre definidos pelo backend (ver ReservaService) para evitar mass assignment,
-// como um usuário comum criando a própria reserva já "APROVADA".
 @Data
 public class ReservaRequest {
 

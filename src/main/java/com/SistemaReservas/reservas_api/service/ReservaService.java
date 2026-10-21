@@ -81,9 +81,6 @@ public class ReservaService {
             reserva.setMotivoRejeicao(null);
         }
 
-        // status, usuarioId, usuarioNome, usuarioEmail e motivoRejeicao nunca vêm do
-        // corpo da requisição: são controlados só pelo backend (evita mass assignment,
-        // ex: um usuário comum definir status=APROVADO na própria reserva).
         aplicarCamposEditaveis(reserva, request);
 
         return salvarComValidacoes(reserva);

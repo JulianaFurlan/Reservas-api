@@ -5,9 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
-// Mass assignment: só os campos abaixo podem ser definidos pelo admin ao criar/editar
-// um usuário. Campos como "id", "ativo" e "senhaTemporaria" são controlados só pelo
-// backend (ver UsuarioService) e não existem aqui de propósito.
 @Data
 public class UsuarioRequest {
 

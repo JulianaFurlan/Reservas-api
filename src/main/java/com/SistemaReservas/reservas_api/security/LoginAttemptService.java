@@ -8,11 +8,6 @@ import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
-/**
- * Rate limiting simples em memória para o endpoint de login, usado para mitigar
- * força bruta de senha. Bloqueia por chave (email ou IP) após N falhas consecutivas.
- * Em memória: suficiente para uma única instância; não sobrevive a múltiplas réplicas.
- */
 @Component
 public class LoginAttemptService {
 
