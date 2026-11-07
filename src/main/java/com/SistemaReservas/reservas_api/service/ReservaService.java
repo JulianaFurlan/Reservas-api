@@ -70,6 +70,7 @@ public class ReservaService {
         return salvarComValidacoes(reserva);
     }
 
+    // editar reserva já analisada a devolve para pendente
     public Reserva atualizar(Long id, ReservaRequest request, Usuario usuarioLogado) {
         Reserva reserva = buscarPorId(id);
         if (!podeGerenciar(usuarioLogado, reserva)) {
@@ -86,6 +87,7 @@ public class ReservaService {
         return salvarComValidacoes(reserva);
     }
 
+    // só aceita reservas em salas ativas
     private void aplicarCamposEditaveis(Reserva reserva, ReservaRequest request) {
         if (request.getSalaId() != null) {
             Sala sala = salaRepository.findById(request.getSalaId())
@@ -157,22 +159,27 @@ public class ReservaService {
 
     private void validarConflito(Reserva reserva) {
         boolean temConflito = repository.findAll().stream().anyMatch(existing -> {
+            // ignora registros sem sala ou data
             if (existing.getSalaId() == null || reserva.getSalaId() == null
                     || existing.getData() == null || reserva.getData() == null) {
                 return false;
             }
+            // ignora outras salas ou outro dia
             if (!existing.getSalaId().equals(reserva.getSalaId())
                     || !existing.getData().equals(reserva.getData())) {
                 return false;
             }
+            //ignora a própria reserva
             if (reserva.getId() != null && existing.getId().equals(reserva.getId())) {
                 return false;
             }
+            // ignora reservas não aprovadas
             if (!aprovada(existing)) {
                 return false;
             }
-            return !(reserva.getHoraFim().isBefore(existing.getHoraInicio())
-                    || reserva.getHoraInicio().isAfter(existing.getHoraFim()));
+            // início novo < fim existente e fim novo > início existente
+            return reserva.getHoraInicio().isBefore(existing.getHoraFim())
+                    && reserva.getHoraFim().isAfter(existing.getHoraInicio());
         });
 
         if (temConflito) {
